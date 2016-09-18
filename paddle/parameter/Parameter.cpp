@@ -46,7 +46,8 @@ Parameter::Parameter(const ParameterConfig& config, bool useGpu, bool doInit)
       deviceId_(-1),
       sharedCount_(0),
       updateCounter_(0),
-      updated_(false) {
+      updated_(false),
+      useSVB_(false) {
   setID(-1); /* capture uninitialized id */
   if (useGpu_ && FLAGS_parallel_nn) {
     /* gpu environment is specified by device property */

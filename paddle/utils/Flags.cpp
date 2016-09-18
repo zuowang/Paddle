@@ -68,3 +68,6 @@ P_DEFINE_bool(prev_batch_state, false, "batch is continue with next batch");
 P_DEFINE_string(init_model_path, "",
                 "Path of the initial model parameters."
                 "If it was set, start_pass will be ignored.");
+P_DEFINE_bool(use_svb, false, "Optimize with Sufficient Vector Broadcasting");
+P_DEFINE_int32(svb_timeout_ms, 10, "Milliseconds the svb receiver waits for");
+P_DEFINE_string(trainers, "", "trainers ip:port");

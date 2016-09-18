@@ -109,6 +109,8 @@ function(link_paddle_exe TARGET_NAME)
         ${ZLIB_LIBRARIES}
         ${INTERAL_LIBS}
         ${CMAKE_DL_LIBS})
+        ${ZeroMQ_LIBRARIES}
+        -lz)
     
     if(WITH_PYTHON)
         target_link_libraries(${TARGET_NAME}

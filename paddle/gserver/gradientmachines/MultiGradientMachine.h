@@ -19,6 +19,7 @@ limitations under the License. */
 
 #include "GradientMachine.h"
 
+#include "paddle/utils/CommBus.h"
 #include "paddle/utils/Queue.h"
 #include "paddle/utils/Locks.h"
 #include "hl_gpu.h"
@@ -154,6 +155,8 @@ struct GradBuffer {
  */
 class MultiGradientMachine : public GradientMachine {
 public:
+  typedef std::vector<const std::vector<ParameterPtr>*> SlaveParameters;
+
   enum TaskType {
     TASK_FORWARD_BACKWARD = 0,
     TASK_FORWARD = 1,
@@ -306,6 +309,10 @@ protected:
   void getOutArgs(std::vector<Argument>* outArgs, PassType passType);
 
   void allocGradBufs();
+
+  void initCommBus();
+
+  void svCollectThread(ParameterPtr para);
 
 protected:
   bool useGpu_;

@@ -18,6 +18,8 @@ limitations under the License. */
 #include <stdint.h>
 
 #include <iostream>
+#include <mutex>
+#include <queue>
 #include <string>
 #include <vector>
 
@@ -28,6 +30,7 @@ limitations under the License. */
 #include "paddle/utils/TypeDefs.h"
 #include "paddle/math/Vector.h"
 #include "paddle/math/Matrix.h"
+#include "paddle/math/SufficientVector.h"
 #include "paddle/utils/Util.h"
 #include "paddle/utils/ThreadLocal.h"
 #include "ParameterUpdaterHook.h"
@@ -323,6 +326,24 @@ public:
     }
   }
 
+  inline bool useSVB() { return useSVB_; }
+
+  void addSV(SufficientVector* sv) {
+    std::lock_guard<std::mutex> guard(lock_);
+    svQueue_.push(sv);
+    useSVB_ = true;
+  }
+
+  SufficientVector* getSV() {
+    if (svQueue_.empty()) {
+      useSVB_ = false;
+      return nullptr;
+    }
+    SufficientVector* sv = svQueue_.front();
+    svQueue_.pop();
+    return sv;
+  }
+
 protected:
   /**
    * @brief create matrix to matType.
@@ -374,6 +395,12 @@ protected:
   static ThreadLocal<std::vector<VectorPtr>> tlsTempBufs_;
 
   std::vector<std::shared_ptr<IParameterUpdaterHook>> updaterHooks_;
+
+  bool useSVB_;
+
+  std::queue<SufficientVector*> svQueue_;
+
+  std::mutex lock_;
 
 public:
   void setSharedCount(int cnt) { sharedCount_ = cnt; }

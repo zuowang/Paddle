@@ -254,6 +254,11 @@ message ProtoMatrix {
   repeated real values = 3 [packed = true];
 }
 
+message ProtoSV {
+  required ProtoMatrix u = 1;
+  required ProtoMatrix v = 2;
+}
+
 message Operation {
   required MatrixVectorOperation operation = 1;
 

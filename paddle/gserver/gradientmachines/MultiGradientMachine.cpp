@@ -785,9 +785,18 @@ void TrainerThread::mergeCpuGradients() {
   std::vector<const std::vector<ParameterPtr>*> slaveParameters =
       multiMachine_->getSlaveParameters();
 
+
   CHECK(slaveParameters.size());
   for (auto& para : multiMachine_->getNonStaticParameters()) {
     if (para->useGpu()) continue;
+
+    size_t pid = para->getID();
+
+    if (parameters_[pid]->useSVB()) {
+      para->addSV(parameters_[pid]->getSV());
+      continue;
+    }
+
     if (para->isSparseRemoteUpdate()) {
       REGISTER_TIMER("mergeRemoteGradSparse");
       mergeGradSparseRemote(para.get(), slaveParameters);
@@ -886,4 +895,5 @@ void TrainerThread::copyOutputGrad() {
   }
   gradientMachine_->setOutputGrad(outArgs_);
 }
+
 }  // namespace paddle

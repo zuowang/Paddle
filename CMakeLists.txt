@@ -23,6 +23,7 @@ find_package(Gflags QUIET)
 find_package(GTest)
 find_package(Sphinx)
 find_package(Doxygen)
+find_package(ZeroMQ)
 include(cblas)
 find_program(M4_EXECUTABLE m4)
 ###################### Configurations ###########################
