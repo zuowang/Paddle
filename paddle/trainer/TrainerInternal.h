@@ -15,6 +15,7 @@ limitations under the License. */
 
 #pragma once
 
+#include "paddle/utils/CommBus.h"
 #include "paddle/utils/Util.h"
 
 #include <stdio.h>
@@ -132,6 +133,10 @@ public:
                                     UpdateCallback updateCallback,
                                     bool doPipelineUpdate);
 
+  void initCommBus();
+
+  void updateSVBParameter(Parameter* para);
+
 protected:
   std::shared_ptr<ParameterUpdater> parameterUpdater_;
   GradientMachinePtr gradientMachine_;
@@ -140,6 +145,10 @@ protected:
   std::shared_ptr<TrainerStats> stats_;
   Evaluator* currentEvaluator_;
   Evaluator* evaluator_;
+  std::unique_ptr<CommBus> commBus_;
+  int max_send_cnt_;
+  int max_recv_cnt_;
+  std::shared_ptr<ParameterUpdater> localParameterUpdater_;
 };
 
 }  // namespace paddle

@@ -17,6 +17,7 @@ limitations under the License. */
 #include "paddle/utils/Logging.h"
 #include "paddle/utils/Stat.h"
 #include "paddle/math/SparseMatrix.h"
+#include "paddle/math/SufficientVector.h"
 #include <vector>
 #include <algorithm>
 
@@ -122,7 +123,12 @@ void FullyConnectedLayer::backward(const UpdateCallback& callback) {
     if (weights_[i]->getWGrad()) {
       MatrixPtr input_T = getInputValue(i)->getTranspose();
       MatrixPtr oGrad = getOutputGrad();
-      {
+      if (FLAGS_use_svb) {
+        SufficientVector* sv = new SufficientVector();
+        sv->SetU(getInputValue(i));
+        sv->SetV(oGrad);
+        weights_[i]->getParameterPtr()->addSV(sv);
+      } else {
         REGISTER_TIMER_INFO("GradMulTimer", getName().c_str());
         weights_[i]->getWGrad()->mul(input_T, oGrad, 1, 1);
       }

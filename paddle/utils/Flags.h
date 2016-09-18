@@ -42,3 +42,6 @@ P_DECLARE_bool(show_layer_stat);
 P_DECLARE_string(predict_file);
 P_DECLARE_bool(prev_batch_state);
 P_DECLARE_string(init_model_path);
+P_DECLARE_bool(use_svb);
+P_DECLARE_int32(svb_timeout_ms);
+P_DECLARE_string(trainers);

@@ -25,8 +25,10 @@ limitations under the License. */
 
 #include <google/protobuf/text_format.h>
 
+#include "paddle/math/SufficientVector.h"
 #include "paddle/utils/PythonUtil.h"
 #include "paddle/utils/Stat.h"
+#include "paddle/utils/StringUtil.h"
 #include "paddle/utils/Util.h"
 #include "paddle/utils/GlobalConstants.h"
 #include "paddle/gserver/gradientmachines/NeuralNetwork.h"
@@ -59,6 +61,8 @@ void TrainerInternal::init(const std::shared_ptr<TrainerConfigHelper> &config,
         config_->getConfig().model_config(), intconfig_->mode,
         parameterUpdater_->getParameterTypes()));
     }
+
+    if (FLAGS_use_svb) initCommBus();
 }
 
 void TrainerInternal::trainOneBatch(int64_t batchId,
@@ -104,7 +108,11 @@ void TrainerInternal::trainOneBatch(int64_t batchId,
       paraStats[para->getID()].avgAbsGrad = grad->getAbsSum() / para->getSize();
       paraStats[para->getID()].maxAbsGrad = grad->getAbsMax();
     }
-    parameterUpdater_->update(para);
+    if (!para->useSVB()) {
+      parameterUpdater_->update(para);
+    } else {
+      updateSVBParameter(para);
+    }
   };
 
   {
@@ -266,6 +274,26 @@ void TrainerInternal::createParameterUpdater(bool testing) {
       }
 
       this->parameterUpdater_ = std::move(localUpdater);
+
+      if (FLAGS_use_svb) {
+        if (GradientMachine::kSgdSparseCpuTraining == intconfig_->mode) {
+          localParameterUpdater_.reset(new SgdThreadUpdater(*config_));
+        } else if (alg == TrainAlgorithm::SGD ||
+                   alg == TrainAlgorithm::AsyncSGD) {
+          if (config_->getModelConfig().type() == "recursive_nn") {
+            localParameterUpdater_.reset(new SgdCpuUpdater(*config_));
+          } else if (intconfig_->use_gpu &&
+              config_->getOptConfig().do_average_in_cpu() &&
+              config_->getOptConfig().average_window() > 0) {
+            localParameterUpdater_.reset(
+                new SgdUpdaterWithCpuAverager(*config_));
+          } else {
+            localParameterUpdater_.reset(new SgdLocalUpdater(*config_));
+          }
+        } else {
+          LOG(FATAL) << "Unsupported algorithm in local mode: " << alg;
+        }
+      }
     }
   } else {
     CHECK_EQ(config_->getOptConfig().num_batches_per_send_parameter(), 1)
@@ -297,6 +325,140 @@ void TrainerInternal::forwardBackwardBatch(const std::vector<Argument>& inArgs,
                                    bool doPipelineUpdate) {
   gradientMachine_->forwardBackward(
       inArgs, &outArgs, passType, doPipelineUpdate ? updateCallback : nullptr);
+}
+
+void TrainerInternal::initCommBus() {
+  std::vector<std::string> hosts;
+  str::split(FLAGS_trainers, ',', &hosts);
+  int trainer_id = FLAGS_trainer_id;
+  commBus_.reset(new CommBus(trainer_id, trainer_id, hosts.size()));
+  int ltype = (trainer_id == ((int)hosts.size() - 1)) ?
+              CommBus::kNone : CommBus::kInterProc;
+  CommBus::Config config(trainer_id, ltype, hosts[trainer_id]);
+  commBus_->ThreadRegister(config);
+  /* This part of the code represents the handshake process to establish
+   conenctions to all other trainers. After this part, one trainer can send msgs
+   to any other. */
+
+  // trainer i connects to trainer [0, ..., i - 1]
+  for (int i = 0; i < trainer_id; ++i) {
+    int conn_msg = trainer_id;
+    commBus_->ConnectTo(i, hosts[i], &conn_msg, sizeof(conn_msg));
+  }
+
+  // trainer i receives connection from trainer [i + 1, n)
+  // (n is the total number of trainers);
+  // trainer i also receives n messages each from a trainer
+  // msgs from trainer [0, i - 1] serves as confirmation of the connection
+  // A trainer can broadcast only when it has 1) connected to all lower ones
+  // and 2) received confirmation from them
+  const int num_expected_conns = hosts.size() - trainer_id - 1;
+  int num_conns = 0;
+  size_t num_other_msgs = 0;
+  const int num_expected_confirms = trainer_id;
+  int num_confirms = 0;
+  while (num_conns < num_expected_conns
+      || num_confirms < num_expected_confirms) {
+    zmq::message_t msg;
+    int32_t sender_id;
+    commBus_->RecvInterProc(&sender_id, &msg);
+    int msg_val = *reinterpret_cast<int*>(msg.data());
+    if (msg_val == sender_id) {
+      num_conns++;
+      LOG(INFO) << trainer_id <<  " received conn from " << sender_id
+          << " msg = " << msg_val;
+    } else {
+      num_other_msgs++;
+      LOG(INFO) << trainer_id <<  " received nonconn from " << sender_id
+          << " msg = " << msg_val;
+      if (sender_id < trainer_id) num_confirms++;
+    }
+  }
+
+  LOG(INFO) << trainer_id << " has received all conns, sending out msgs now";
+  for (size_t dst = 0; dst < hosts.size(); dst++) {
+    int non_conn_msg = trainer_id + 100;
+    if (dst == (size_t)trainer_id) continue;  // cannot send to myself
+    commBus_->SendInterProc(dst, &non_conn_msg, sizeof(non_conn_msg));
+  }
+
+  LOG(INFO) << trainer_id <<
+      " send out all msgs, receive my remaininy msgs now";
+  while (num_other_msgs < hosts.size() - 1) {
+    zmq::message_t msg;
+    int32_t sender_id;
+    commBus_->RecvInterProc(&sender_id, &msg);
+    int msg_val = *reinterpret_cast<int*>(msg.data());
+    if (msg_val == sender_id) {
+      LOG(FATAL) << "Error!";
+    } else {
+      num_other_msgs++;
+      LOG(INFO) << trainer_id <<  " received nonconn from " << sender_id
+          << " msg = " << msg_val;
+    }
+  }
+
+  // From now on, one client can send and receive from any other (not itself).
+  LOG(INFO) << "Client " << trainer_id << " is connected for SVB";
+
+  max_send_cnt_ = hosts.size();
+  max_recv_cnt_ = (hosts.size() - 1) * FLAGS_trainer_count;
+}
+
+void TrainerInternal::updateSVBParameter(Parameter* para) {
+  LOG(INFO) << "max_recv_cnt_=" << max_recv_cnt_
+      << " max_send_cnt_=" << max_send_cnt_;
+
+  while (true) {
+    SufficientVector* sv = para->getSV();
+    if (sv == nullptr) break;
+    // LOG(INFO) << "u height=" << sv->GetU()->getHeight()
+    //           << " wight=" << sv->GetU()->getWidth();
+    // LOG(INFO) << "v height=" << sv->GetV()->getHeight()
+    //           << " wight=" << sv->GetV()->getWidth();
+
+    ProtoSV* psv = new ProtoSV();
+    sv->ToProto(psv);
+    delete sv;
+    std::string msg_str;
+    psv->SerializeToString(&msg_str);
+    for (int dst = 0; dst < max_send_cnt_; dst++) {
+      if (dst == FLAGS_trainer_id) continue;  // cannot send to myself
+      size_t sz = commBus_->SendInterProc(dst, msg_str.c_str(), msg_str.size());
+      CHECK_EQ(sz, msg_str.size());
+      // LOG(INFO) << "Send sv=" << sv << " to " << dst;
+    }
+    delete psv;
+  }
+
+  auto weightGrad = para->getMat(PARAMETER_GRADIENT);
+  int recv_cnt = 0;
+  while (recv_cnt < max_recv_cnt_) {
+    // recv
+    zmq::message_t msg;
+    int32_t sender_id;
+    bool succ = commBus_->RecvInterProcTimeOut(
+        &sender_id, &msg, FLAGS_svb_timeout_ms);
+    if (!succ) continue;
+    // parse
+    ProtoSV psv;
+    CHECK(psv.ParseFromArray(msg.data(), msg.size())) <<
+        "SVB message parsing error\n"
+        << msg.size();
+    // add to the remote-sv queue
+    SufficientVector* sv = new SufficientVector();
+    sv->FromProto(psv);
+    // LOG(INFO) << "Recv sv=" << sv << " from " << sender_id;
+    // LOG(INFO) << "u height=" << sv->GetU()->getHeight()
+    //           << " wight=" << sv->GetU()->getWidth();
+    // LOG(INFO) << "v height=" << sv->GetV()->getHeight()
+    //           << " wight=" << sv->GetV()->getWidth();
+    weightGrad->mul(sv->GetU()->getTranspose(), sv->GetV(), 1, 1);
+    delete sv;
+    ++recv_cnt;
+  }
+
+  localParameterUpdater_->update(para);
 }
 
 }  // namespace paddle

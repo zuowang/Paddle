@@ -24,4 +24,4 @@ python paddle.py \
   --local=0 \
   --config=./trainer_config.py \
   --save_dir=./output \
-  --use_gpu=0
+  --use_gpu=0 

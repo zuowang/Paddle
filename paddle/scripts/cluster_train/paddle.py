@@ -133,6 +133,7 @@ def job_trainer(jobdir,
     args += " --ports_num=" + str(conf.PADDLE_PORTS_NUM)
     args += " --comment=" + "paddle_process_by_paddle"
     ip_string = ""
+    trainers = "" 
     for i in xrange(len(conf.HOSTS)):
         host = conf.HOSTS[i]
         left = host.find("@")
@@ -140,8 +141,12 @@ def job_trainer(jobdir,
         left = 0 if left == -1 else left + 1
         right = len(host) if right == -1 else right
         ip_string += (socket.gethostbyname(host[left:right]) + ",")
+        trainers += (socket.gethostbyname(host[left:right]) + ":7050,") 
     ip_string = ip_string.rstrip(",")
+    trainers = trainers.rstrip(",")
     args += " --pservers=" + ip_string
+    args += " --trainers=" + trainers
+    args += " --use_svb=1" 
 
     args_ext = ""
     for key, value in train_args_dict.items():

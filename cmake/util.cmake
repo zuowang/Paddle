@@ -69,6 +69,7 @@ function(link_paddle_exe TARGET_NAME)
         ${CBLAS_LIBS}
         ${CMAKE_DL_LIBS}
         ${INTERAL_LIBS}
+        ${ZeroMQ_LIBRARIES}
         -lz)
     
     if(WITH_PYTHON)
