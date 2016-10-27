@@ -384,11 +384,6 @@ class SvrgOptimizer : public ParameterOptimizer {
     firstTime_ = false;
   }
 
-  virtual void finishPass() {
-    ++pass_;
-    vecs[PARAMETER_SNAPSHOT]->copyFrom(*vecs[PARAMETER_VALUE]);
-  }
-
  protected:
 };
 

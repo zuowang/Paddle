@@ -274,7 +274,8 @@ void Trainer::train(size_t numPasses) {
 
   trainerInternal_.getGradientMachine()->start(*config_, dataProvider_);
 
-  if (trainByStage) {
+  int32_t numPassesOneStage = 5;
+  if (true) {//trainByStage) {
     CHECK_EQ(numPasses % numPassesOneStage, 0);
     size_t numStages = numPasses / numPassesOneStage;
     for (size_t s = 0; s < numStages; ++s) {
@@ -556,8 +557,7 @@ void Trainer::trainOneStage(int stageId) {
 
   trainerInternal_.getGradientMachine()->onPassEnd();
 
-  bool accepted =
-      trainerInternal_.getParameterUpdater()->finishPass(cost);
+  trainerInternal_.getParameterUpdater()->finishPass(cost);
 
   globalStat.setThreadInfo(true);
   globalStat.printAllStatus();
@@ -567,8 +567,10 @@ void Trainer::trainOneStage(int stageId) {
       << stats_->getStats(false /*withCurrentCost*/);
 
   trainerInternal_.getParameterUpdater()->startStage();
+  size_t numPassesOneStage = 5;
   for (size_t i = 0; i < numPassesOneStage; ++i) {
-    trainOnePass(config_->getConfig().start_pass() + stageId * numPassesOneStage + i);
+    trainOnePass(config_->getConfig().start_pass() + 
+        stageId * numPassesOneStage + i);
   }
   trainerInternal_.getParameterUpdater()->finishStage();
 }

@@ -931,6 +931,7 @@ void ParameterServer2::sendParameter(const SendParameterRequest& request,
     case PSERVER_UPDATE_MODE_GET_PARAM_SPARSE:
     case PSERVER_UPDATE_MODE_ASYNC_SGD:
     case PSERVER_UPDATE_MODE_AVERAGE_PARAMETER:
+    case PSERVER_UPDATE_MODE_AVERAGE_GRADIENT:
       std::vector<iovec> outputIovs;
       outputIovs.reserve(outputBuffers.size());
       for (auto buffer : outputBuffers) {

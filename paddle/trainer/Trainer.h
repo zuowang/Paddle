@@ -161,6 +161,12 @@ protected:
    */
   void clearGradient();
 
+  /**
+   * Train one stage, used in svrg.
+   *
+   */
+  void trainOneStage(int stageId);
+
 private:
   std::unique_ptr<TesterConfig> createTesterConfig();
 

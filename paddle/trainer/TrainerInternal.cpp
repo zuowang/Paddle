@@ -133,7 +133,7 @@ void TrainerInternal::trainOneBatch(int64_t batchId,
       for (auto& para : parameters) {
         // PARAMETER_GRADIENT = PARAMETER_GRADIENT_TMP - PARAMETER_GRADIENT
         para->getBuf(PARAMETER_GRADIENT_CUR)->add(
-            *para->getBuf(PARAMETER_GRADIENT), -1.0f, 1.0f)
+            *para->getBuf(PARAMETER_GRADIENT), -1.0f, 1.0f);
       }
     }
 #ifndef PADDLE_DISABLE_TIMER
