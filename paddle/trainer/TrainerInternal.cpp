@@ -67,7 +67,7 @@ void TrainerInternal::trainOneBatch(int64_t batchId,
   bool doPipelineUpdate =
       (intconfig_->mode != GradientMachine::kSgdSparseCpuTraining) &&
       (intconfig_->local || intconfig_->use_gpu ||
-       intconfig_->trainer_count <= 1);
+       intconfig_->trainer_count <= 1) && !true;//intconfig_->use_svrg;
 
   int64_t actualBatchSize = dataBatch.getSize();
   if (actualBatchSize == 0) {
@@ -116,6 +116,26 @@ void TrainerInternal::trainOneBatch(int64_t batchId,
     REGISTER_TIMER("forwardBackward");
     forwardBackwardBatch(inArgs, outArgs, passType, updateCallback,
                          doPipelineUpdate);
+    if (true) {//intconfig_->use_svrg) {
+      std::vector<ParameterPtr>& parameters = gradientMachine_->getParameters();
+      for (auto& para : parameters) {
+        // copy PARAMETER_GRADIENT to PARAMETER_GRADIENT_TMP
+        para->getBuf(PARAMETER_GRADIENT_CUR)->copyFrom(
+            *para->getBuf(PARAMETER_GRADIENT));
+        // copy PARAMTER_SNAPSHOT to PARAMTER_VALUE
+        para->getBuf(PARAMTER_VALUE)->copyFrom(
+            *para->getBuf(PARAMTER_SNAPSHOT));
+      }
+
+      forwardBackwardBatch(inArgs, outArgs, passType, updateCallback,
+                           doPipelineUpdate);
+      // PARAMETER_GRADIENT as PARAMETER_GRADIENT_TMP sub PARAMETER_GRADIENT
+      for (auto& para : parameters) {
+        // PARAMETER_GRADIENT = PARAMETER_GRADIENT_TMP - PARAMETER_GRADIENT
+        para->getBuf(PARAMETER_GRADIENT_CUR)->add(
+            *para->getBuf(PARAMETER_GRADIENT), -1.0f, 1.0f)
+      }
+    }
 #ifndef PADDLE_DISABLE_TIMER
     timer.stop();
     parameterUpdater_->setForwardbackwardTime(timer.get());

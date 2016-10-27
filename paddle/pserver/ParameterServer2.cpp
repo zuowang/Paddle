@@ -120,6 +120,7 @@ bool ParameterServer2::init() {
   asyncTrainerCommitStat_.resize(FLAGS_num_gradient_servers);
   asyncTrainerCommitStat_.assign(asyncTrainerCommitStat_.size(), 0);
 
+  numSamplesAggregated_ = 0;
   return true;
 }
 
@@ -478,6 +479,50 @@ void ParameterServer2::addGradient(const SendParameterRequest& request,
   }
 }
 
+void ParameterServer2::avgGradient(const SendParameterRequest& request,
+                                   std::vector<Buffer>& inputBuffers,
+                                   SendParameterResponse* response,
+                                   std::vector<Buffer>* outputBuffers) {
+  VLOG(1) << "pserver: avgGradient";
+
+  /// full GD delta from all trainers
+  {
+    REGISTER_TIMER_DYNAMIC("avgGradCore", -1, *statSet_);
+    ReadLockGuard guard(parameterMutex_);
+    int bufferIndex = 0;
+    for (const auto& block : request.blocks()) {
+      int64_t offset = getBlockOffset(block);
+      CHECK_GE(offset, 0) << "Only existing parameter block is allowed: "
+          << " id=" << block.para_id()
+          << " block id=" << block.block_id();
+
+      int64_t blockId = getBlockId(block);
+      CHECK_GE(blockId, 0) << "Only existing parameter block is allowed: "
+          << " id=" << block.para_id()
+          << " block id=" << block.block_id();
+
+      Buffer buffer = inputBuffers[bufferIndex];
+      ++bufferIndex;
+
+      const real* gradientBuffer = buffer.base;
+      real* gradientSumBuffer = vectors_[PARAMETER_GRADIENT_AVG]->getPoint(offset);
+
+      size_t size = buffer.size;
+
+      BlockInfo& info = blockInfos_[blockId];
+      const ParameterConfig& config = getParameterConfig(blockId);
+      if (config.sparse_remote_update()) {
+        CHECK_EQ(size, config.parameter_block_size());
+      } else {  // dense
+        CHECK_LE(size, config.parameter_block_size());
+      }
+      std::lock_guard<std::mutex> guard(*info.lock);
+      simd::addTo(gradientSumBuffer, gradientBuffer, size);
+    }
+    numSamplesAggregated_ += request.num_samples();
+  }
+}
+
 bool ParameterServer2::asyncGrdientCommitCheckAndStat(
     const SendParameterRequest& request) {
   const auto trainerId = request.trainer_id();
@@ -592,6 +637,10 @@ void ParameterServer2::asyncSGD(const SendParameterRequest& request,
   bool commitGradient = asyncGrdientCommitCheckAndStat(request);
 
   VectorPtr* vecs = Parameter::getTlsTempBufs();
+  if (numSamplesAggregated_ != 0) {
+    vecs[PARAMETER_GRADIENT_AVG]->divScalar(numSamplesAggregated_);
+    numSamplesAggregated_ = 0;
+  }
   size_t bufferIndex = 0;
   for (const auto& block : request.blocks()) {
     int64_t offset = getBlockOffset(block);
@@ -815,6 +864,9 @@ void ParameterServer2::sendParameter(const SendParameterRequest& request,
       addGradient(request, inputBuffers, &response, &outputBuffers);
       break;
     case PSERVER_UPDATE_MODE_AVERAGE_PARAMETER:
+      break;
+    case PSERVER_UPDATE_MODE_AVERAGE_GRADIENT:
+      avgGradient(request, inputBuffers, &response, &outputBuffers);
       break;
   }
   switch (request.update_mode()) {

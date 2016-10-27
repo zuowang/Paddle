@@ -317,6 +317,8 @@ protected:
    */
   std::unique_ptr<StatSet> statSet_;
 
+  int64_t numSamplesAggregated_;
+
 public:
   struct Buffer {
     real* base;
