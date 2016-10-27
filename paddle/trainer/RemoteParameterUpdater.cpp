@@ -196,7 +196,7 @@ void RemoteParameterUpdater::startStage(int64_t numSamples) {
 
 bool RemoteParameterUpdater::finishStage(real cost) {
   // pull PARAMETER_SNAPSHOT at the end of stage
-  parameterClient_->getParameter(PARAMETER_SNAPSHOT);
+  parameterClient_->getParameter(PARAMETER_VALUE, PARAMETER_SNAPSHOT);
   return true;
 }
 
