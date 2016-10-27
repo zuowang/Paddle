@@ -91,7 +91,7 @@ public:
   virtual void finishBatch(real cost);
   virtual void startPass();
   virtual bool finishPass(real cost);
-  virtual void startStage();
+  virtual void startStage(int64_t numSamples);
   virtual bool finishStage(real cost);
 
 #ifndef PADDLE_DISABLE_TIMER

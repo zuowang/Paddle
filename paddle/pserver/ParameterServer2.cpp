@@ -505,7 +505,8 @@ void ParameterServer2::avgGradient(const SendParameterRequest& request,
       ++bufferIndex;
 
       const real* gradientBuffer = buffer.base;
-      real* gradientSumBuffer = vectors_[PARAMETER_GRADIENT_AVG]->getPoint(offset);
+      real* gradientSumBuffer =
+          vectors_[PARAMETER_GRADIENT_AVG]->getPoint(offset);
 
       size_t size = buffer.size;
 

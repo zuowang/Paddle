@@ -533,6 +533,11 @@ public:
                           SendParameterResponse* response,
                           std::vector<Buffer>* outputBuffers);
 
+  void avgGradient(const SendParameterRequest& request,
+                   std::vector<Buffer>& inputBuffers,
+                   SendParameterResponse* response,
+                   std::vector<Buffer>* outputBuffers);
+
 protected:
   void mergeSegments(BlockSegments* segments);
 
