@@ -274,14 +274,22 @@ void Trainer::train(size_t numPasses) {
 
   trainerInternal_.getGradientMachine()->start(*config_, dataProvider_);
 
-  for (size_t i = 0; i < numPasses; ++i) {
-    if (IGradientMachineMode::trainWholeDataInOneBatch(mode_)) {
-      trainOnePassBatch(config_->getConfig().start_pass() + i);
-    } else {
-      trainOnePass(config_->getConfig().start_pass() + i);
+  if (trainByStage) {
+    CHECK_EQ(numPasses % numPassesOneStage, 0);
+    size_t numStages = numPasses / numPassesOneStage;
+    for (size_t s = 0; s < numStages; ++s) {
+      trainOneStage(s);
     }
-    if (i < numPasses - 1) {
-      dataProvider_->reset();
+  } else {
+    for (size_t i = 0; i < numPasses; ++i) {
+      if (IGradientMachineMode::trainWholeDataInOneBatch(mode_)) {
+        trainOnePassBatch(config_->getConfig().start_pass() + i);
+      } else {
+        trainOnePass(config_->getConfig().start_pass() + i);
+      }
+      if (i < numPasses - 1) {
+        dataProvider_->reset();
+      }
     }
   }
 
@@ -528,6 +536,41 @@ void Trainer::trainOnePassBatch(int passId) {
       paramUtil_->deleteParameters(acceptedPassId_ - FLAGS_saving_period);
     }
   }
+}
+
+void Trainer::trainOneStage(int stageId) {
+  this->stats_->reset();
+
+  trainerInternal_.getParameterUpdater()->startPass();
+  const std::vector<Argument> inArgs;
+  {
+    REGISTER_TIMER("onePass");
+    trainerInternal_.getGradientMachine()->forwardBackward(inArgs, nullptr,
+                                                           PASS_TRAIN, nullptr);
+  }
+
+  real cost = .0;
+  int64_t num = 0;
+  trainerInternal_.getGradientMachine()->getStats(cost, num);
+  *stats_ += {num, cost};
+
+  trainerInternal_.getGradientMachine()->onPassEnd();
+
+  bool accepted =
+      trainerInternal_.getParameterUpdater()->finishPass(cost);
+
+  globalStat.setThreadInfo(true);
+  globalStat.printAllStatus();
+  globalStat.reset();
+
+  LOG(INFO) << " Stage=" << stageId
+      << stats_->getStats(false /*withCurrentCost*/);
+
+  trainerInternal_.getParameterUpdater()->startStage();
+  for (size_t i = 0; i < numPassesOneStage; ++i) {
+    trainOnePass(config_->getConfig().start_pass() + stageId * numPassesOneStage + i);
+  }
+  trainerInternal_.getParameterUpdater()->finishStage();
 }
 
 real Trainer::calcGradient(const DataBatch& dataBatch, const Vector& value,

@@ -35,6 +35,13 @@ public:
 
   virtual void init(std::vector<ParameterPtr>& parameters);
 
+  // startStage and finishStage is used in SVRG algorithm
+  // called by Trainer when starting a new stage
+  virtual void startStage() {}
+
+  // called by Trainer then finishing a stage
+  virtual bool finishStage(real cost = 0) { return true; }
+
   // called by Trainer when starting a new pass
   virtual void startPass() {}
 

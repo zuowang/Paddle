@@ -38,6 +38,9 @@ enum ParameterUpdateMode {
   // No update. Only get parameters back.
   PSERVER_UPDATE_MODE_GET_PARAM = 5;
   PSERVER_UPDATE_MODE_GET_PARAM_SPARSE = 6;//only get sparse rows
+
+  // Average gradient
+  PSERVER_UPDATE_MODE_AVERAGE_GRADIENT = 7;
 };
 
 message ParameterBlock {

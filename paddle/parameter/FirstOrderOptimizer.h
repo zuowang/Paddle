@@ -353,4 +353,43 @@ protected:
   std::unique_ptr<ParameterOptimizer> optimizer_;
 };
 
+/**
+ * SVRG Optimizer.
+ * Reference Paper: http://arxiv.org/abs/1603.06160v2 Algorithm 4
+ */
+class SvrgOptimizer : public ParameterOptimizer {
+ public:
+  explicit SvrgOptimizer(const OptimizationConfig& optConfig)
+      : ParameterOptimizer(optConfig) {
+    addParameterType(PARAMETER_MOMENTUM);
+  }
+
+  virtual void startBatch(int64_t numSamplesProcessed) {
+    learningRate_ = calcLearningRate(numSamplesProcessed, pass_);
+  }
+  virtual void update(const VectorPtr vecs[], const ParameterConfig& paraConfig,
+                      size_t sparseId) const {
+    (void)sparseId;
+    vecs[PARAMETER_GRADIENT]->add(*vecs[PARAMETER_GRADIENT_AVG], 1.0f);
+    real torch_learningRate = optConfig_.learning_method() == "torch_momentum" ?
+                              1.0 - paraConfig.momentum() : 1.0;
+    vecs[PARAMETER_VALUE]->sgdUpdate(
+        *vecs[PARAMETER_GRADIENT], *vecs[PARAMETER_MOMENTUM],
+        learningRate_ * paraConfig.learning_rate() *
+            (firstTime_ ? 1.0 : torch_learningRate),
+        paraConfig.momentum(),
+        applyDecay_ ? paraConfig.decay_rate() : 0);
+  }
+  virtual void finishBatch() {
+    firstTime_ = false;
+  }
+
+  virtual void finishPass() {
+    ++pass_;
+    vecs[PARAMETER_SNAPSHOT]->copyFrom(*vecs[PARAMETER_VALUE]);
+  }
+
+ protected:
+};
+
 }  // namespace paddle

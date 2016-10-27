@@ -172,8 +172,8 @@ protected:
       size_t realSize = datas ? std::max(ownSize, size_t(1)) : 0;
       block->set_total_size(realSize * sizeof(DataType));
       block->set_data_size(sizeof(DataType));
-      // TODO(yuyang18): The getTransDtype can be rewritten as template method
       //                 to reduce runtime overhead.
+      // TODO(yuyang18): The getTransDtype can be rewritten as template method
       block->set_data_type(getTransDtype(typeid(DataType*)));  // NOLINT
       if (datas) {
         sendJob->parallelInputIovs[i].push_back(

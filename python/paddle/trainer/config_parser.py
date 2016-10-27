@@ -216,6 +216,10 @@ def Inputs(*args):
         if g_current_submodel is g_root_submodel:
             g_config.model_config.input_layer_names.append(name)
 
+@config_func
+def HasInputsSet():
+    return len(g_config.model_config.input_layer_names) != 0
+
 
 # Define the name of the output layers of the NeuralNetwork.
 # Usually the output is simply the cost layer.
@@ -1715,7 +1719,6 @@ def define_cost(class_name, cost_type):
     g_cost_map[cost_type] = cls
 
 define_cost('MultiClassCrossEntropy', 'multi-class-cross-entropy')
-define_cost('ClassificationErrorLayer', 'classification_error')
 define_cost('RankingCost', 'rank-cost')
 define_cost('AucValidation', 'auc-validation')
 define_cost('PnpairValidation', 'pnpair-validation')
