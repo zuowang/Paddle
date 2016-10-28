@@ -195,7 +195,8 @@ void RemoteParameterUpdater::startStage(int64_t numSamples) {
   parameterClient_->sendAndReceiveParameter(mode, sendType, numSamples,
                                             0,       // cost = 0
                                             false,  // sendBackParameter
-                                            PARAMETER_VALUE, PARAMETER_SNAPSHOT);
+                                            PARAMETER_VALUE,
+                                            PARAMETER_SNAPSHOT);
 }
 
 bool RemoteParameterUpdater::finishStage(real cost) {
