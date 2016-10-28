@@ -194,7 +194,7 @@ void RemoteParameterUpdater::startStage(int64_t numSamples) {
   REGISTER_TIMER("sendFullGrad");
   parameterClient_->sendAndReceiveParameter(mode, sendType, numSamples,
                                             0,       // cost = 0
-                                            false,  // sendBackParameter
+                                            true,  // sendBackParameter
                                             PARAMETER_VALUE,
                                             PARAMETER_SNAPSHOT);
 }
