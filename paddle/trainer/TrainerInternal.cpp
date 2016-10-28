@@ -119,7 +119,7 @@ void TrainerInternal::trainOneBatch(int64_t batchId,
     if (true) {  // intconfig_->use_svrg) {
       std::vector<ParameterPtr>& parameters = gradientMachine_->getParameters();
       for (auto& para : parameters) {
-        // copy PARAMETER_GRADIENT to PARAMETER_GRADIENT_TMP
+        // copy PARAMETER_GRADIENT to PARAMETER_GRADIENT_BK
         para->getBuf(PARAMETER_GRADIENT_BK)->copyFrom(
             *para->getBuf(PARAMETER_GRADIENT));
         // copy PARAMETER_SNAPSHOT to PARAMETER_VALUE
@@ -129,9 +129,9 @@ void TrainerInternal::trainOneBatch(int64_t batchId,
 
       forwardBackwardBatch(inArgs, outArgs, passType, updateCallback,
                            doPipelineUpdate);
-      // PARAMETER_GRADIENT as PARAMETER_GRADIENT_TMP sub PARAMETER_GRADIENT
+      // PARAMETER_GRADIENT as PARAMETER_GRADIENT_BK sub PARAMETER_GRADIENT
       for (auto& para : parameters) {
-        // PARAMETER_GRADIENT = PARAMETER_GRADIENT_TMP - PARAMETER_GRADIENT
+        // PARAMETER_GRADIENT = PARAMETER_GRADIENT_BK - PARAMETER_GRADIENT
         para->getBuf(PARAMETER_GRADIENT_BK)->add(
             *para->getBuf(PARAMETER_GRADIENT), -1.0f, 1.0f);
       }

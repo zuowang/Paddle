@@ -42,6 +42,9 @@ RemoteParameterUpdater::RemoteParameterUpdater(
       isFirstPass_(true),
       useApplyInPserver_(false) {
   addParameterType(PARAMETER_MOMENTUM);
+  addParameterType(PARAMETER_GRADIENT_AVG);
+  addParameterType(PARAMETER_GRADIENT_BK);
+  addParameterType(PARAMETER_SNAPSHOT);
 }
 
 void RemoteParameterUpdater::init(std::vector<ParameterPtr>& parameters) {
