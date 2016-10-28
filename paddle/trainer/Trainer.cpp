@@ -542,6 +542,7 @@ void Trainer::trainOnePassBatch(int passId) {
 void Trainer::trainOneStage(int stageId) {
   this->stats_->reset();
 
+  /*
   trainerInternal_.getParameterUpdater()->startPass();
   const std::vector<Argument> inArgs;
   {
@@ -562,6 +563,7 @@ void Trainer::trainOneStage(int stageId) {
   globalStat.setThreadInfo(true);
   globalStat.printAllStatus();
   globalStat.reset();
+  */
 
   LOG(INFO) << " Stage=" << stageId
       << stats_->getStats(false /*withCurrentCost*/);
