@@ -158,6 +158,7 @@ public:
     addParameterType(PARAMETER_GRADIENT_SQURESUM1);
     addParameterType(PARAMETER_GRADIENT_SQURESUM);
     addParameterType(PARAMETER_LEARNING_RATE);
+    addParameterType(PARAMETER_GRADIENT_AVG);
     rou_ = optConfig.ada_rou();
     epsilon_ = optConfig.ada_epsilon();
   }
