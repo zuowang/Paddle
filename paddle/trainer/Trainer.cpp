@@ -565,8 +565,8 @@ void Trainer::trainOneStage(int stageId) {
   globalStat.reset();
   */
 
-  LOG(INFO) << " Stage=" << stageId
-      << stats_->getStats(false /*withCurrentCost*/);
+  // LOG(INFO) << " Stage=" << stageId
+  //    << stats_->getStats(false /*withCurrentCost*/);
 
   trainerInternal_.getParameterUpdater()->startStage();
   size_t numPassesOneStage = 5;
