@@ -123,8 +123,8 @@ void TrainerInternal::trainOneBatch(int64_t batchId,
         para->getBuf(PARAMETER_GRADIENT_BK)->copyFrom(
             *para->getBuf(PARAMETER_GRADIENT));
         // copy PARAMETER_SNAPSHOT to PARAMETER_VALUE
-        para->getBuf(PARAMETER_VALUE)->copyFrom(
-           *para->getBuf(PARAMETER_SNAPSHOT));
+        // para->getBuf(PARAMETER_VALUE)->copyFrom(
+        //    *para->getBuf(PARAMETER_SNAPSHOT));
       }
 
       forwardBackwardBatch(inArgs, outArgs, passType, updateCallback,
