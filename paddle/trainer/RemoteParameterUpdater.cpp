@@ -188,15 +188,15 @@ void RemoteParameterUpdater::updateImpl(Parameter* para) {
 }
 
 void RemoteParameterUpdater::startStage(int64_t numSamples) {
-  ParameterUpdateMode mode = PSERVER_UPDATE_MODE_AVERAGE_GRADIENT;
-  ParameterType sendType = PARAMETER_GRADIENT;
+  // ParameterUpdateMode mode = PSERVER_UPDATE_MODE_AVERAGE_GRADIENT;
+  // ParameterType sendType = PARAMETER_GRADIENT;
 
-  REGISTER_TIMER("sendFullGrad");
-  parameterClient_->sendAndReceiveParameter(mode, sendType, numSamples,
-                                            0,       // cost = 0
-                                            true,  // sendBackParameter
-                                            PARAMETER_VALUE,
-                                            PARAMETER_SNAPSHOT);
+  // REGISTER_TIMER("sendFullGrad");
+  // parameterClient_->sendAndReceiveParameter(mode, sendType, numSamples,
+  //                                          0,       // cost = 0
+  //                                          true,  // sendBackParameter
+  //                                          PARAMETER_VALUE,
+  //                                          PARAMETER_SNAPSHOT);
 }
 
 bool RemoteParameterUpdater::finishStage(real cost) {
