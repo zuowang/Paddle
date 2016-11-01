@@ -542,33 +542,10 @@ void Trainer::trainOnePassBatch(int passId) {
 void Trainer::trainOneStage(int stageId) {
   this->stats_->reset();
 
-  /*
-  trainerInternal_.getParameterUpdater()->startPass();
-  const std::vector<Argument> inArgs;
-  {
-    REGISTER_TIMER("onePass");
-    trainerInternal_.getGradientMachine()->forwardBackward(inArgs, nullptr,
-                                                           PASS_TRAIN, nullptr);
-  }
+  int64_t numSamples = CalcFullGradient(dataProvider_,
+                                        config_->getOptConfig().batch_size());
 
-  real cost = .0;
-  int64_t num = 0;
-  trainerInternal_.getGradientMachine()->getStats(cost, num);
-  *stats_ += {num, cost};
-
-  trainerInternal_.getGradientMachine()->onPassEnd();
-
-  trainerInternal_.getParameterUpdater()->finishPass(cost);
-
-  globalStat.setThreadInfo(true);
-  globalStat.printAllStatus();
-  globalStat.reset();
-  */
-
-  // LOG(INFO) << " Stage=" << stageId
-  //    << stats_->getStats(false /*withCurrentCost*/);
-
-  trainerInternal_.getParameterUpdater()->startStage(100);
+  trainerInternal_.getParameterUpdater()->startStage(numSamples);
   std::vector<ParameterPtr>& parameters =
       trainerInternal_.getGradientMachine()->getParameters();
   for (auto& para : parameters) {

@@ -102,6 +102,18 @@ message WaitPassFinishRequest {
 message WaitPassFinishResponse {
 }
 
+message WaitStageStartRequest {
+}
+
+message WaitStageStartResponse {
+}
+
+message WaitStageFinishRequest {
+}
+
+message WaitStageFinishResponse {
+}
+
 enum SyncObject {
   SYNC_DEFAULT = 0; // wait for the synchronizeBarrier_
   SYNC_DATA = 1; // wait for the synchronizeDataBarrier_

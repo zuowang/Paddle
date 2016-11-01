@@ -58,7 +58,9 @@ ParameterServer2::ParameterServer2(const std::string& addr, int port,
       numPassFinishClients_(0),
       allClientPassFinish_(false),
       serverId_(-1),
-      batchId_(-1) {
+      batchId_(-1),
+      stageStartBarrier_(FLAGS_num_gradient_servers),
+      stageFinishBarrier_(FLAGS_num_gradient_servers) {
  /**
   * register function for remote client calling, these functions
   * will be mapped to a data structure for quick looking up. each
@@ -1510,6 +1512,18 @@ void ParameterServer2::waitPassFinish(const WaitPassFinishRequest& request,
   }
 
   callback(WaitPassFinishResponse());
+}
+
+void ParameterServer2::waitStageStart(const WaitStageStartRequest& request,
+                                      ProtoResponseCallback callback) {
+  stageStartBarrier_.wait();
+  callback(WaitStageStartResponse());
+}
+
+void ParameterServer2::waitStageFinish(const WaitStageFinishRequest& request,
+                                       ProtoResponseCallback callback) {
+  stageStartBarrier_.wait();
+  callback(WaitStageFinishResponse());
 }
 
 void ParameterServer2::synchronize(const SynchronizeRequest& request,

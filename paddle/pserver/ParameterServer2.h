@@ -249,6 +249,9 @@ protected:
   ThreadLocal<std::vector<SendParameterRequest>> requestVec_;
   ThreadLocal<std::vector<ProtoResponseCallbackEx>> callbackVec_;
 
+  ThreadBarrier stageStartBarrier_;
+  ThreadBarrier stageFinishBarrier_;
+
   std::atomic<int> numPassFinishClients_;
   bool allClientPassFinish_;
 
@@ -435,6 +438,12 @@ public:
    */
   void waitPassFinish(const WaitPassFinishRequest& request,
                       ProtoResponseCallback callback);
+
+  void waitStageStart(const WaitStageStartRequest& request,
+                      ProtoResponseCallback callback);
+
+  void waitStageFinish(const WaitStageFinishRequest& request,
+                       ProtoResponseCallback callback);
 
   /**
    * @brief synchronize all distributed trainers

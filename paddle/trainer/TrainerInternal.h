@@ -132,6 +132,9 @@ public:
                                     UpdateCallback updateCallback,
                                     bool doPipelineUpdate);
 
+  void CalcFullGradient(DataProviderPtr dataProvider,
+                        int32_t batchSize);
+
 protected:
   std::shared_ptr<ParameterUpdater> parameterUpdater_;
   GradientMachinePtr gradientMachine_;

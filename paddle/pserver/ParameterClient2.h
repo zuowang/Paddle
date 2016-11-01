@@ -380,6 +380,9 @@ public:
    */
   void waitPassFinish();
 
+  void waitStageStart();
+  void waitStageFinish();
+
   /// Wait until all gradient servers call this function.
   void synchronize(SyncObject syncObjectId = SYNC_DEFAULT);
 

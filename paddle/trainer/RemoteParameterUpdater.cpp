@@ -188,6 +188,8 @@ void RemoteParameterUpdater::updateImpl(Parameter* para) {
 }
 
 void RemoteParameterUpdater::startStage(int64_t numSamples) {
+  parameterClient_->waitStageStart();
+
   ParameterUpdateMode mode = PSERVER_UPDATE_MODE_AVERAGE_GRADIENT;
   ParameterType sendType = PARAMETER_GRADIENT;
 
