@@ -132,7 +132,7 @@ public:
                                     UpdateCallback updateCallback,
                                     bool doPipelineUpdate);
 
-  void CalcFullGradient(DataProviderPtr dataProvider,
+  int64_t calcFullGradient(DataProviderPtr dataProvider,
                         int32_t batchSize);
 
 protected:

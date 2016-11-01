@@ -55,12 +55,12 @@ ParameterServer2::ParameterServer2(const std::string& addr, int port,
       gradientReadyBarrier_(FLAGS_num_gradient_servers + 1),
       parameterReadyBarrier_(FLAGS_num_gradient_servers + 1),
       passBarrier_(FLAGS_num_gradient_servers + 1),
+      stageStartBarrier_(FLAGS_num_gradient_servers),
+      stageFinishBarrier_(FLAGS_num_gradient_servers),
       numPassFinishClients_(0),
       allClientPassFinish_(false),
       serverId_(-1),
-      batchId_(-1),
-      stageStartBarrier_(FLAGS_num_gradient_servers),
-      stageFinishBarrier_(FLAGS_num_gradient_servers) {
+      batchId_(-1) {
  /**
   * register function for remote client calling, these functions
   * will be mapped to a data structure for quick looking up. each

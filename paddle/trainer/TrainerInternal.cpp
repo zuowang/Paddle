@@ -190,7 +190,7 @@ void TrainerInternal::trainOneBatch(int64_t batchId,
   }
 }
 
-void TrainerInternal::CalcFullGradient(DataProviderPtr dataProvider,
+int64_t TrainerInternal::calcFullGradient(DataProviderPtr dataProvider,
                                        int32_t batchSize) {
   int64_t numSamples = 0;
   while (true) {
@@ -213,10 +213,10 @@ void TrainerInternal::CalcFullGradient(DataProviderPtr dataProvider,
 
       const std::vector<Argument>& inArgs = dataBatch.getStreams();
       std::vector<Argument> outArgs;
-    }
 
-    forwardBackwardBatch(inArgs, outArgs, passType, NULL,
-                         false);
+      PassType passType = PASS_TRAIN;
+      forwardBackwardBatch(inArgs, outArgs, passType, NULL, false);
+    }
 
     std::vector<ParameterPtr>& parameters = gradientMachine_->getParameters();
     for (auto& para : parameters) {

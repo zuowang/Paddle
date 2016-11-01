@@ -542,8 +542,8 @@ void Trainer::trainOnePassBatch(int passId) {
 void Trainer::trainOneStage(int stageId) {
   this->stats_->reset();
 
-  int64_t numSamples = CalcFullGradient(dataProvider_,
-                                        config_->getOptConfig().batch_size());
+  int64_t numSamples = trainerInternal_.calcFullGradient(
+      dataProvider_, config_->getOptConfig().batch_size());
 
   trainerInternal_.getParameterUpdater()->startStage(numSamples);
   std::vector<ParameterPtr>& parameters =
