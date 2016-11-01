@@ -55,6 +55,8 @@ endif()
 # Common flags. the compiler flag used for C/C++ sources whenever release or debug
 # Do not care if this flag is support for gcc.
 set(COMMON_FLAGS
+    -O0
+    -ggdb
     -fPIC
     -fno-omit-frame-pointer
     -Wall
