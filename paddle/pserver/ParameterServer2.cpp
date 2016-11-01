@@ -83,6 +83,7 @@ ParameterServer2::ParameterServer2(const std::string& addr, int port,
   REGISTER_SERVICE_FUNCTION(ParameterServer2, asyncFinishPass);
   REGISTER_SERVICE_FUNCTION(ParameterServer2, loadValueVector);
   REGISTER_SERVICE_FUNCTION(ParameterServer2, saveValueVector);
+  REGISTER_SERVICE_FUNCTION(ParameterServer2, waitStageStart);
 
   /// thread pool for parallelizing some computations
   if (FLAGS_pserver_num_threads > 1) {
