@@ -181,7 +181,6 @@ void RMSPropParameterOptimizer::update(const VectorPtr vecs[],
     t0Vec_[sparseId] = timer_ + 1;
   }
 
-  vecs[PARAMETER_GRADIENT_AVG]->zeroMem();
   vecs[PARAMETER_GRADIENT]->add(*vecs[PARAMETER_GRADIENT_AVG], 1.0f);
 
   // E(g_t^2) = \rou * E(g_{t-1}^2) + (1-\rou) * g^2
