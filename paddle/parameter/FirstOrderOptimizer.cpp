@@ -171,6 +171,7 @@ void AdaDeltaParameterOptimizer::update(const VectorPtr vecs[],
 void RMSPropParameterOptimizer::update(const VectorPtr vecs[],
                                        const ParameterConfig& config,
                                        size_t sparseId) const {
+  /*
   real accumulatedRou = rou_;
 
   bool firstTime = timer_ == 0;
@@ -181,7 +182,6 @@ void RMSPropParameterOptimizer::update(const VectorPtr vecs[],
     t0Vec_[sparseId] = timer_ + 1;
   }
 
-  vecs[PARAMETER_GRADIENT]->add(*vecs[PARAMETER_GRADIENT_AVG], 1.0f);
 
   // E(g_t^2) = \rou * E(g_{t-1}^2) + (1-\rou) * g^2
   // For the first time update, make the sum be the current square
@@ -207,6 +207,16 @@ void RMSPropParameterOptimizer::update(const VectorPtr vecs[],
       *vecs[PARAMETER_GRADIENT], *vecs[PARAMETER_MOMENTUM],
       *vecs[PARAMETER_LEARNING_RATE], learningRate_ * config.learning_rate(),
       config.momentum(), applyDecay_ ? config.decay_rate() : 0);
+
+   */
+  (void)sparseId;
+
+  vecs[PARAMETER_GRADIENT]->add(*vecs[PARAMETER_GRADIENT_AVG], 1.0f);
+  vecs[PARAMETER_VALUE]->sgdUpdate(
+      *vecs[PARAMETER_GRADIENT], *vecs[PARAMETER_MOMENTUM],
+      learningRate_ * paraConfig.learning_rate(),
+      paraConfig.momentum(),
+      applyDecay_ ? paraConfig.decay_rate() : 0);
 }
 
 void DecayedAdagradParameterOptimizer::update(const VectorPtr vecs[],
