@@ -193,7 +193,7 @@ void TrainerInternal::trainOneBatch(int64_t batchId,
 int64_t TrainerInternal::calcFullGradient(DataProviderPtr dataProvider,
                                        int32_t batchSize) {
   int64_t numSamples = 0;
-  while (true) {
+  while (false) {
     DataBatch dataBatch;
 
     int num = 0;
