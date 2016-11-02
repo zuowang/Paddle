@@ -116,6 +116,14 @@ void TrainerInternal::trainOneBatch(int64_t batchId,
     REGISTER_TIMER("forwardBackward");
     forwardBackwardBatch(inArgs, outArgs, passType, updateCallback,
                          doPipelineUpdate);
+    if (batchId % 10 == 0) {
+      std::vector<ParameterPtr>& parameters = gradientMachine_->getParameters();
+      for (auto& para : parameters) {
+        // copy PARAMETER_VALUE to PARAMETER_SNAPSHOT
+        para->getBuf(PARAMETER_SNAPSHOT)->copyFrom(
+            *para->getBuf(PARAMETER_VALUE));
+      }
+    }
     if (true) {  // intconfig_->use_svrg) {
       std::vector<ParameterPtr>& parameters = gradientMachine_->getParameters();
       for (auto& para : parameters) {
