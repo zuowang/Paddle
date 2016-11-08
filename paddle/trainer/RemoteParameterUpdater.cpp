@@ -42,6 +42,9 @@ RemoteParameterUpdater::RemoteParameterUpdater(
       isFirstPass_(true),
       useApplyInPserver_(false) {
   addParameterType(PARAMETER_MOMENTUM);
+  addParameterType(PARAMETER_GRADIENT_AVG);
+  addParameterType(PARAMETER_GRADIENT_BK);
+  addParameterType(PARAMETER_SNAPSHOT);
 }
 
 void RemoteParameterUpdater::init(std::vector<ParameterPtr>& parameters) {
@@ -182,6 +185,55 @@ void RemoteParameterUpdater::updateImpl(Parameter* para) {
   if (localUpdater_) {
     localUpdater_->update(para);
   }
+}
+
+void RemoteParameterUpdater::startStage() {
+  if (FLAGS_trainer_id == 0) {
+    copyParametersFromDevice(PARAMETER_GRADIENT_AVG);
+    parameterClient_->sendAndReceiveParameter(PSERVER_UPDATE_MODE_SET_PARAM,
+                                              PARAMETER_GRADIENT_AVG,
+                                              0,       // numSamples = 0
+                                              0,       // cost = 0
+                                              false);  // sendBackParameter
+    parameterClient_->synchronize(SYNC_STAGE);
+  } else {
+    parameterClient_->synchronize(SYNC_STAGE);
+    parameterClient_->sendAndReceiveParameter(PSERVER_UPDATE_MODE_GET_PARAM,
+                                              PARAMETER_GRADIENT_AVG,
+                                              0,     // numSamples = 0
+                                              0,     // cost = 0
+                                              true,  // sendBackParamete
+                                              PARAMETER_GRADIENT_AVG,
+                                              PARAMETER_GRADIENT_AVG);
+    copyParametersToDevice(PARAMETER_GRADIENT_AVG);
+  }
+//  if (FLAGS_trainer_id == 0) {
+//    ParameterUpdateMode mode = PSERVER_UPDATE_MODE_AVERAGE_GRADIENT;
+//    ParameterType sendType = PARAMETER_GRADIENT;
+//
+//    REGISTER_TIMER("sendFullGrad");
+//    parameterClient_->sendAndReceiveParameter(mode, sendType, numSamples,
+//                                              0,       // cost = 0
+//                                              true,  // sendBackParameter
+//                                              PARAMETER_VALUE,
+//                                              PARAMETER_SNAPSHOT);
+//  } else {
+//    parameterClient_->waitStageStart();
+//  }
+}
+
+bool RemoteParameterUpdater::finishStage(real cost) {
+  // pull PARAMETER_SNAPSHOT at the end of stage
+  parameterClient_->asyncFinishStage(SYNC_STAGE);
+  parameterClient_->sendAndReceiveParameter(PSERVER_UPDATE_MODE_GET_PARAM,
+                                            PARAMETER_VALUE,
+                                            0,     // numSamples = 0
+                                            0,     // cost = 0
+                                            true,  // sendBackParameter = true
+                                            PARAMETER_VALUE,
+                                            PARAMETER_SNAPSHOT);
+  copyParametersToDevice(PARAMETER_SNAPSHOT);
+  return true;
 }
 
 void RemoteParameterUpdater::finishBatch(real cost) {

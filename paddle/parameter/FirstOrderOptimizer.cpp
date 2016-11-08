@@ -181,6 +181,7 @@ void RMSPropParameterOptimizer::update(const VectorPtr vecs[],
     t0Vec_[sparseId] = timer_ + 1;
   }
 
+
   // E(g_t^2) = \rou * E(g_{t-1}^2) + (1-\rou) * g^2
   // For the first time update, make the sum be the current square
   // so that the initial estimation of E(g_t^2) will not be too small.

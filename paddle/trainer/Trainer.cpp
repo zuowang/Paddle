@@ -274,14 +274,23 @@ void Trainer::train(size_t numPasses) {
 
   trainerInternal_.getGradientMachine()->start(*config_, dataProvider_);
 
-  for (size_t i = 0; i < numPasses; ++i) {
-    if (IGradientMachineMode::trainWholeDataInOneBatch(mode_)) {
-      trainOnePassBatch(config_->getConfig().start_pass() + i);
-    } else {
-      trainOnePass(config_->getConfig().start_pass() + i);
+  int32_t numPassesOneStage = 5;
+  if (true) {  // trainByStage) {
+    CHECK_EQ(numPasses % numPassesOneStage, 0);
+    size_t numStages = numPasses / numPassesOneStage;
+    for (size_t s = 0; s < numStages; ++s) {
+      trainOneStage(s);
     }
-    if (i < numPasses - 1) {
-      dataProvider_->reset();
+  } else {
+    for (size_t i = 0; i < numPasses; ++i) {
+      if (IGradientMachineMode::trainWholeDataInOneBatch(mode_)) {
+        trainOnePassBatch(config_->getConfig().start_pass() + i);
+      } else {
+        trainOnePass(config_->getConfig().start_pass() + i);
+      }
+      if (i < numPasses - 1) {
+        dataProvider_->reset();
+      }
     }
   }
 
@@ -528,6 +537,57 @@ void Trainer::trainOnePassBatch(int passId) {
       paramUtil_->deleteParameters(acceptedPassId_ - FLAGS_saving_period);
     }
   }
+}
+
+void Trainer::trainOneStage(int stageId) {
+  this->stats_->reset();
+
+  if (FLAGS_trainer_id == 0) {
+    trainerInternal_.calcFullGradient(
+        dataProvider_, config_->getOptConfig().batch_size());
+    dataProvider_->reset();
+
+//    std::vector<ParameterPtr>& parameters =
+//        trainerInternal_.getGradientMachine()->getParameters();
+//    int32_t batchSize = config_->getOptConfig().batch_size();
+//    int32_t numBatches = 0;
+//    while (true) {
+//      DataBatch dataBatch;
+//
+//      int num = 0;
+//      {
+//        REGISTER_TIMER("getTrainBatch");
+//        num = dataProvider_->getNextBatch(batchSize, &dataBatch);
+//      }
+//      if (num == 0) break;
+//      int64_t actualBatchSize = dataBatch.getSize();
+//      if (actualBatchSize == 0) {
+//        break;
+//      }
+//      numBatches++;
+//      clearGradient();
+//      std::vector<Argument> inArgs = dataBatch.getStreams();
+//      std::vector<Argument> outArgs;
+//      trainerInternal_.getGradientMachine()->forwardBackward(inArgs, &outArgs,
+//                                                             PASS_TRAIN);
+//      for (auto& para : parameters) {
+//        para->getBuf(PARAMETER_GRADIENT_AVG)->add(
+//            *para->getBuf(PARAMETER_GRADIENT), 1.0f, 1.0f);
+//      }
+//    }
+//    for (auto& para : parameters) {
+//      para->getBuf(PARAMETER_GRADIENT_AVG)->divScalar(numBatches);
+//    }
+//    dataProvider_->reset();
+  }
+
+  trainerInternal_.getParameterUpdater()->startStage();
+  size_t numPassesOneStage = 5;
+  for (size_t i = 0; i < numPassesOneStage; ++i) {
+    trainOnePass(config_->getConfig().start_pass() +
+        stageId * numPassesOneStage + i);
+  }
+  trainerInternal_.getParameterUpdater()->finishStage();
 }
 
 real Trainer::calcGradient(const DataBatch& dataBatch, const Vector& value,

@@ -380,11 +380,15 @@ public:
    */
   void waitPassFinish();
 
+  void waitStageStart();
+  void waitStageFinish();
+
   /// Wait until all gradient servers call this function.
   void synchronize(SyncObject syncObjectId = SYNC_DEFAULT);
 
   /// Called when async-sgd finish pass.
   void asyncFinishPass(SyncObject syncObjectId = SYNC_DEFAULT);
+  void asyncFinishStage(SyncObject syncObjectId = SYNC_DEFAULT);
 
   void asyncStartPass(SyncObject syncObjectId = SYNC_DEFAULT) {
     return synchronize(syncObjectId);

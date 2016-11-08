@@ -67,7 +67,7 @@ void TrainerInternal::trainOneBatch(int64_t batchId,
   bool doPipelineUpdate =
       (intconfig_->mode != GradientMachine::kSgdSparseCpuTraining) &&
       (intconfig_->local || intconfig_->use_gpu ||
-       intconfig_->trainer_count <= 1);
+       intconfig_->trainer_count <= 1);  // && !true;  // intconfig_->use_svrg;
 
   int64_t actualBatchSize = dataBatch.getSize();
   if (actualBatchSize == 0) {
@@ -116,6 +116,27 @@ void TrainerInternal::trainOneBatch(int64_t batchId,
     REGISTER_TIMER("forwardBackward");
     forwardBackwardBatch(inArgs, outArgs, passType, updateCallback,
                          doPipelineUpdate);
+    if (true) {  // intconfig_->use_svrg) {
+      std::vector<ParameterPtr>& parameters = gradientMachine_->getParameters();
+      for (auto& para : parameters) {
+        // copy PARAMETER_GRADIENT to PARAMETER_GRADIENT_BK
+        para->getBuf(PARAMETER_GRADIENT_BK)->copyFrom(
+            *para->getBuf(PARAMETER_GRADIENT));
+        // copy PARAMETER_SNAPSHOT to PARAMETER_VALUE
+        para->getBuf(PARAMETER_VALUE)->copyFrom(
+            *para->getBuf(PARAMETER_SNAPSHOT));
+        para->clearGradient();
+      }
+      gradientMachine_->forwardBackward(inArgs, &outArgs, PASS_TRAIN);
+      // PARAMETER_GRADIENT as PARAMETER_GRADIENT_BK sub PARAMETER_GRADIENT
+      for (auto& para : parameters) {
+        // PARAMETER_GRADIENT = PARAMETER_GRADIENT_BK - PARAMETER_GRADIENT
+        para->getBuf(PARAMETER_GRADIENT)->add(
+            *para->getBuf(PARAMETER_GRADIENT_BK), -1.0f, 1.0f);
+        para->getBuf(PARAMETER_GRADIENT)->add(
+            *para->getBuf(PARAMETER_GRADIENT_AVG), 1.0f, 1.0f);
+      }
+    }
 #ifndef PADDLE_DISABLE_TIMER
     timer.stop();
     parameterUpdater_->setForwardbackwardTime(timer.get());
@@ -168,6 +189,49 @@ void TrainerInternal::trainOneBatch(int64_t batchId,
             (batchId + 1) % intconfig_->dot_period == 0) {
     std::cerr << ".";
   }
+}
+
+int64_t TrainerInternal::calcFullGradient(DataProviderPtr dataProvider,
+                                       int32_t batchSize) {
+  int64_t numBatches = 0;
+  std::vector<ParameterPtr>& parameters = gradientMachine_->getParameters();
+  while (true) {
+    DataBatch dataBatch;
+
+    int num = 0;
+    {
+      REGISTER_TIMER("getTrainBatch");
+      num = dataProvider->getNextBatch(batchSize, &dataBatch);
+    }
+    if (num == 0) break;
+
+    {
+      REGISTER_TIMER("TrainBatch");
+      int64_t actualBatchSize = dataBatch.getSize();
+      if (actualBatchSize == 0) {
+        break;
+      }
+      numBatches++;
+
+      const std::vector<Argument>& inArgs = dataBatch.getStreams();
+      std::vector<Argument> outArgs;
+
+      PassType passType = PASS_TRAIN;
+      forwardBackwardBatch(inArgs, outArgs, passType, NULL, false);
+    }
+
+    for (auto& para : parameters) {
+      // add PARAMETER_GRADIENT to PARAMETER_GRADIENT_AVG
+      para->getBuf(PARAMETER_GRADIENT_AVG)->add(
+          *para->getBuf(PARAMETER_GRADIENT), 1.0f, 1.0f);
+    }
+  }
+
+  for (auto& para : parameters) {
+    para->getBuf(PARAMETER_GRADIENT_AVG)->divScalar(numBatches);
+  }
+
+  return numSamples;
 }
 
 /**

@@ -3356,7 +3356,7 @@ void CpuMatrix::tanh(Matrix& output) {
   CHECK_EQ(output.getWidth(), dim);
   errno = 0;
   vTanh(numSamples * dim, getData(), output.getData());
-  CHECK_EQ(errno, 0) << "vTanh error";
+  // CHECK_EQ(errno, 0) << "vTanh error";
 }
 
 void CpuMatrix::tanhDerivative(Matrix& output) {
