@@ -55,6 +55,8 @@ ParameterServer2::ParameterServer2(const std::string& addr, int port,
       gradientReadyBarrier_(FLAGS_num_gradient_servers + 1),
       parameterReadyBarrier_(FLAGS_num_gradient_servers + 1),
       passBarrier_(FLAGS_num_gradient_servers + 1),
+      stageStartBarrier_(FLAGS_num_gradient_servers),
+      stageFinishBarrier_(FLAGS_num_gradient_servers),
       numPassFinishClients_(0),
       allClientPassFinish_(false),
       serverId_(-1),
@@ -81,6 +83,7 @@ ParameterServer2::ParameterServer2(const std::string& addr, int port,
   REGISTER_SERVICE_FUNCTION(ParameterServer2, asyncFinishPass);
   REGISTER_SERVICE_FUNCTION(ParameterServer2, loadValueVector);
   REGISTER_SERVICE_FUNCTION(ParameterServer2, saveValueVector);
+  REGISTER_SERVICE_FUNCTION(ParameterServer2, waitStageStart);
 
   /// thread pool for parallelizing some computations
   if (FLAGS_pserver_num_threads > 1) {
@@ -120,6 +123,7 @@ bool ParameterServer2::init() {
   asyncTrainerCommitStat_.resize(FLAGS_num_gradient_servers);
   asyncTrainerCommitStat_.assign(asyncTrainerCommitStat_.size(), 0);
 
+  numSamplesAggregated_ = 0;
   return true;
 }
 
@@ -478,6 +482,51 @@ void ParameterServer2::addGradient(const SendParameterRequest& request,
   }
 }
 
+void ParameterServer2::avgGradient(const SendParameterRequest& request,
+                                   std::vector<Buffer>& inputBuffers,
+                                   SendParameterResponse* response,
+                                   std::vector<Buffer>* outputBuffers) {
+  VLOG(1) << "pserver: avgGradient";
+
+  /// full GD delta from all trainers
+  {
+    REGISTER_TIMER_DYNAMIC("avgGradCore", -1, *statSet_);
+    ReadLockGuard guard(parameterMutex_);
+    int bufferIndex = 0;
+    for (const auto& block : request.blocks()) {
+      int64_t offset = getBlockOffset(block);
+      CHECK_GE(offset, 0) << "Only existing parameter block is allowed: "
+          << " id=" << block.para_id()
+          << " block id=" << block.block_id();
+
+      int64_t blockId = getBlockId(block);
+      CHECK_GE(blockId, 0) << "Only existing parameter block is allowed: "
+          << " id=" << block.para_id()
+          << " block id=" << block.block_id();
+
+      Buffer buffer = inputBuffers[bufferIndex];
+      ++bufferIndex;
+
+      const real* gradientBuffer = buffer.base;
+      real* gradientSumBuffer =
+          vectors_[PARAMETER_GRADIENT_AVG]->getPoint(offset);
+
+      size_t size = buffer.size;
+
+      BlockInfo& info = blockInfos_[blockId];
+      const ParameterConfig& config = getParameterConfig(blockId);
+      if (config.sparse_remote_update()) {
+        CHECK_EQ(size, config.parameter_block_size());
+      } else {  // dense
+        CHECK_LE(size, config.parameter_block_size());
+      }
+      std::lock_guard<std::mutex> guard(*info.lock);
+      simd::addTo(gradientSumBuffer, gradientBuffer, size);
+    }
+    numSamplesAggregated_ += request.num_samples();
+  }
+}
+
 bool ParameterServer2::asyncGrdientCommitCheckAndStat(
     const SendParameterRequest& request) {
   const auto trainerId = request.trainer_id();
@@ -592,6 +641,10 @@ void ParameterServer2::asyncSGD(const SendParameterRequest& request,
   bool commitGradient = asyncGrdientCommitCheckAndStat(request);
 
   VectorPtr* vecs = Parameter::getTlsTempBufs();
+  if (numSamplesAggregated_ != 0) {
+    vecs[PARAMETER_GRADIENT_AVG]->divScalar(numSamplesAggregated_);
+    numSamplesAggregated_ = 0;
+  }
   size_t bufferIndex = 0;
   for (const auto& block : request.blocks()) {
     int64_t offset = getBlockOffset(block);
@@ -816,6 +869,9 @@ void ParameterServer2::sendParameter(const SendParameterRequest& request,
       break;
     case PSERVER_UPDATE_MODE_AVERAGE_PARAMETER:
       break;
+    case PSERVER_UPDATE_MODE_AVERAGE_GRADIENT:
+      avgGradient(request, inputBuffers, &response, &outputBuffers);
+      break;
   }
   switch (request.update_mode()) {
     case PSERVER_UPDATE_MODE_ADD_GRADIENT:
@@ -879,6 +935,7 @@ void ParameterServer2::sendParameter(const SendParameterRequest& request,
     case PSERVER_UPDATE_MODE_GET_PARAM_SPARSE:
     case PSERVER_UPDATE_MODE_ASYNC_SGD:
     case PSERVER_UPDATE_MODE_AVERAGE_PARAMETER:
+    case PSERVER_UPDATE_MODE_AVERAGE_GRADIENT:
       std::vector<iovec> outputIovs;
       outputIovs.reserve(outputBuffers.size());
       for (auto buffer : outputBuffers) {
@@ -1456,6 +1513,18 @@ void ParameterServer2::waitPassFinish(const WaitPassFinishRequest& request,
   }
 
   callback(WaitPassFinishResponse());
+}
+
+void ParameterServer2::waitStageStart(const WaitStageStartRequest& request,
+                                      ProtoResponseCallback callback) {
+  stageStartBarrier_.wait();
+  callback(WaitStageStartResponse());
+}
+
+void ParameterServer2::waitStageFinish(const WaitStageFinishRequest& request,
+                                       ProtoResponseCallback callback) {
+  stageStartBarrier_.wait();
+  callback(WaitStageFinishResponse());
 }
 
 void ParameterServer2::synchronize(const SynchronizeRequest& request,

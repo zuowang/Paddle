@@ -28,7 +28,7 @@ with open(META_FILE, 'rb') as f:
     meta = pickle.load(f)
 
 settings(batch_size=1600, learning_rate=1e-3,
-         learning_method=RMSPropOptimizer())
+         learning_method=RMSPropOptimizer(), is_async=True)
 
 
 def construct_feature(name):

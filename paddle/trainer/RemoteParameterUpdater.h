@@ -91,6 +91,8 @@ public:
   virtual void finishBatch(real cost);
   virtual void startPass();
   virtual bool finishPass(real cost);
+  virtual void startStage(int64_t numSamples);
+  virtual bool finishStage(real cost);
 
 #ifndef PADDLE_DISABLE_TIMER
   virtual void setForwardbackwardTime(uint64_t delta) {
@@ -155,6 +157,8 @@ protected:
   /// true if it's first pass
   bool isFirstPass_;
   bool useApplyInPserver_;
+  /// true if prev gradient is sended
+  bool sendPrevGrad_;
 
   static const std::string kAverage;
   static const std::string kElasticAverage;

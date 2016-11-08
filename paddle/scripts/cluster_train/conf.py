@@ -13,8 +13,8 @@
 # limitations under the License.
 
 HOSTS = [
-        "root@192.168.100.17",
-        "root@192.168.100.18",
+        "root@172.17.0.2",
+        "root@172.17.0.3",
         ]
 
 '''

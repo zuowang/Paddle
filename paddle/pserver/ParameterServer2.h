@@ -249,6 +249,9 @@ protected:
   ThreadLocal<std::vector<SendParameterRequest>> requestVec_;
   ThreadLocal<std::vector<ProtoResponseCallbackEx>> callbackVec_;
 
+  ThreadBarrier stageStartBarrier_;
+  ThreadBarrier stageFinishBarrier_;
+
   std::atomic<int> numPassFinishClients_;
   bool allClientPassFinish_;
 
@@ -316,6 +319,8 @@ protected:
    * by remote updater controller
    */
   std::unique_ptr<StatSet> statSet_;
+
+  int64_t numSamplesAggregated_;
 
 public:
   struct Buffer {
@@ -434,6 +439,12 @@ public:
   void waitPassFinish(const WaitPassFinishRequest& request,
                       ProtoResponseCallback callback);
 
+  void waitStageStart(const WaitStageStartRequest& request,
+                      ProtoResponseCallback callback);
+
+  void waitStageFinish(const WaitStageFinishRequest& request,
+                       ProtoResponseCallback callback);
+
   /**
    * @brief synchronize all distributed trainers
    *
@@ -530,6 +541,11 @@ public:
                           std::vector<Buffer>& inputBuffers,
                           SendParameterResponse* response,
                           std::vector<Buffer>* outputBuffers);
+
+  void avgGradient(const SendParameterRequest& request,
+                   std::vector<Buffer>& inputBuffers,
+                   SendParameterResponse* response,
+                   std::vector<Buffer>* outputBuffers);
 
 protected:
   void mergeSegments(BlockSegments* segments);

@@ -42,6 +42,9 @@ RemoteParameterUpdater::RemoteParameterUpdater(
       isFirstPass_(true),
       useApplyInPserver_(false) {
   addParameterType(PARAMETER_MOMENTUM);
+  addParameterType(PARAMETER_GRADIENT_AVG);
+  addParameterType(PARAMETER_GRADIENT_BK);
+  addParameterType(PARAMETER_SNAPSHOT);
 }
 
 void RemoteParameterUpdater::init(std::vector<ParameterPtr>& parameters) {
@@ -182,6 +185,26 @@ void RemoteParameterUpdater::updateImpl(Parameter* para) {
   if (localUpdater_) {
     localUpdater_->update(para);
   }
+}
+
+void RemoteParameterUpdater::startStage(int64_t numSamples) {
+  parameterClient_->waitStageStart();
+
+  ParameterUpdateMode mode = PSERVER_UPDATE_MODE_AVERAGE_GRADIENT;
+  ParameterType sendType = PARAMETER_GRADIENT;
+
+  REGISTER_TIMER("sendFullGrad");
+  parameterClient_->sendAndReceiveParameter(mode, sendType, numSamples,
+                                            0,       // cost = 0
+                                            true,  // sendBackParameter
+                                            PARAMETER_VALUE,
+                                            PARAMETER_SNAPSHOT);
+}
+
+bool RemoteParameterUpdater::finishStage(real cost) {
+  // pull PARAMETER_SNAPSHOT at the end of stage
+  // parameterClient_->getParameter(PARAMETER_VALUE, PARAMETER_SNAPSHOT);
+  return true;
 }
 
 void RemoteParameterUpdater::finishBatch(real cost) {

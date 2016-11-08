@@ -16,6 +16,7 @@ limitations under the License. */
 #define HL_CPU_MATRIX_KERNEL_CUH_
 
 #include <stdio.h>
+#include <iostream>
 #include "hl_base.h"
 #include "hl_sse_matrix_kernel.cuh"
 

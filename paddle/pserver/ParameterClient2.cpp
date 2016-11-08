@@ -433,6 +433,18 @@ void ParameterClient2::waitPassFinish() {
   multiCall(__func__, request, &responses);
 }
 
+void ParameterClient2::waitStageStart() {
+  WaitStageStartRequest request;
+  std::vector<WaitStageStartResponse> responses;
+  multiCall(__func__, request, &responses);
+}
+
+void ParameterClient2::waitStageFinish() {
+  WaitStageFinishRequest request;
+  std::vector<WaitStageFinishResponse> responses;
+  multiCall(__func__, request, &responses);
+}
+
 void ParameterClient2::synchronize(SyncObject syncObjectId) {
   SynchronizeRequest request;
   request.set_sync_object_id(syncObjectId);

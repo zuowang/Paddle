@@ -274,14 +274,23 @@ void Trainer::train(size_t numPasses) {
 
   trainerInternal_.getGradientMachine()->start(*config_, dataProvider_);
 
-  for (size_t i = 0; i < numPasses; ++i) {
-    if (IGradientMachineMode::trainWholeDataInOneBatch(mode_)) {
-      trainOnePassBatch(config_->getConfig().start_pass() + i);
-    } else {
-      trainOnePass(config_->getConfig().start_pass() + i);
+  int32_t numPassesOneStage = 5;
+  if (true) {  // trainByStage) {
+    CHECK_EQ(numPasses % numPassesOneStage, 0);
+    size_t numStages = numPasses / numPassesOneStage;
+    for (size_t s = 0; s < numStages; ++s) {
+      trainOneStage(s);
     }
-    if (i < numPasses - 1) {
-      dataProvider_->reset();
+  } else {
+    for (size_t i = 0; i < numPasses; ++i) {
+      if (IGradientMachineMode::trainWholeDataInOneBatch(mode_)) {
+        trainOnePassBatch(config_->getConfig().start_pass() + i);
+      } else {
+        trainOnePass(config_->getConfig().start_pass() + i);
+      }
+      if (i < numPasses - 1) {
+        dataProvider_->reset();
+      }
     }
   }
 
@@ -528,6 +537,27 @@ void Trainer::trainOnePassBatch(int passId) {
       paramUtil_->deleteParameters(acceptedPassId_ - FLAGS_saving_period);
     }
   }
+}
+
+void Trainer::trainOneStage(int stageId) {
+  this->stats_->reset();
+
+  int64_t numSamples = trainerInternal_.calcFullGradient(
+      dataProvider_, config_->getOptConfig().batch_size());
+  dataProvider_->reset();
+
+  trainerInternal_.getParameterUpdater()->startStage(numSamples);
+  std::vector<ParameterPtr>& parameters =
+      trainerInternal_.getGradientMachine()->getParameters();
+  for (auto& para : parameters) {
+    para->getBuf(PARAMETER_SNAPSHOT)->copyFrom(*para->getBuf(PARAMETER_VALUE));
+  }
+  size_t numPassesOneStage = 5;
+  for (size_t i = 0; i < numPassesOneStage; ++i) {
+    trainOnePass(config_->getConfig().start_pass() +
+        stageId * numPassesOneStage + i);
+  }
+  trainerInternal_.getParameterUpdater()->finishStage();
 }
 
 real Trainer::calcGradient(const DataBatch& dataBatch, const Vector& value,
