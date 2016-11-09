@@ -231,7 +231,7 @@ int64_t TrainerInternal::calcFullGradient(DataProviderPtr dataProvider,
     para->getBuf(PARAMETER_GRADIENT_AVG)->divScalar(numBatches);
   }
 
-  return numSamples;
+  return numBatches;
 }
 
 /**
