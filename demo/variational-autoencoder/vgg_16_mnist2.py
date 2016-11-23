@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from paddle.trainer_config_helpers import *
+import numpy as np
 
 is_predict = get_config_arg("is_predict", bool, False)
 
@@ -68,15 +69,76 @@ with mixed_layer() as kld1:
     kld1 += dotmul_operator(a=mu, b=mu)
     kld1 += identity_projection(kld0)
 
+    kld1 += dotmul_operator(a=mu, b=mu)
+    kld1 += identity_projection(kld0)
+
 kld2 = sum_cost(input=kld1)
 
 kld = slope_intercept_layer(input=kld2, slope=0.5, intercept=0.0)
 
-similarity = cos_sim(a=mu, b=sigma)
+#epsilon = tf.random_normal(tf.shape(sigma), name = 'epsilon')
+
+epsilon = data_layer(name='epsilon', size=n_z)
+
+
+# z = mu + sigma^ 0.5 * epsilon
+#z = mu + tf.exp(0.5 * log_sigma) * epsilon
+
+log_sigma1 = slope_intercept_layer(input=log_sigma, slope=0.5, intercept=0.0)
+
+with mixed_layer(act=ExpActivation()) as L3:
+    L3 += identity_projection(input=log_sigma1)
+
+with mixed_layer(act=ExpActivation()) as z:
+    z += identity_projection(input=mu)
+    #z += dotmul_operator(a=L3, b=epsilon)
+
+def buildDecoderNetwork(z):
+    DECODER_HIDDEN_COUNT = 400
+    with mixed_layer(bias_attr=True) as layer1:
+        layer1 += full_matrix_projection(input=z, size=ENCODER_HIDDEN_COUNT)
+
+    with mixed_layer(bias_attr=True) as layer2:
+        layer2 += full_matrix_projection(input=layer1, size=n_X)
+
+    return layer2
+    #layer1 = Layer(z, DECODER_HIDDEN_COUNT)
+    #layer2 = Layer(layer1.output, n_X)
+    #return layer2.raw_output
+
+    #layer2 = Layer(layer1.output, n_X)
+    #return layer2.raw_output
+
+reconstructed_X = buildDecoderNetwork(z)
+
+#reconstruction_loss = cross_entropy(input=reconstructed_X, label=X)
+reconstruction_loss = sum_cost(input=reconstructed_X)
+
+#cost = sum_cost(input=cross_entropy)
+#reconstruction_loss = tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(reconstructed_X, X), reduction_indices = 1)
+
+with mixed_layer() as loss:
+    loss += identity_projection(input=reconstruction_loss)
+    loss += identity_projection(input=kld)
+#loss = tf.reduce_mean(reconstruction_loss + kld)
+
+#data_size = 1 * 28 * 28
+#label_size = 10
+#img = data_layer(name='pixel', size=data_size)
+
+
+
+# small_vgg is predined in trainer_config_helpers.network
+#predict = small_vgg(input_image=img, num_channels=1, num_classes=label_size)
 
 if not is_predict:
-    #inputs(X)
-    #outputs(kld)
-    outputs(similarity)
+    #lbl = data_layer(name="label", size=label_size)
+    #inputs(img, lbl)
+    #outputs(classification_cost(input=predict, label=lbl))
+    #outputs(loss)
+    outputs(kld)
+#else:
+    #outputs(predict)
+
 
 

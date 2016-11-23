@@ -5,7 +5,7 @@ import numpy as np
 # Define a py data provider
 @provider(
     input_types={'pixel': dense_vector(28 * 28),
-                 'label': integer_value(10),
+                 #'label': integer_value(10),
                  'epsilon': dense_vector(400)})
 def process(settings, filename):  # settings is not used currently.
     imgf = filename + "-images-idx3-ubyte"
@@ -28,7 +28,8 @@ def process(settings, filename):  # settings is not used currently.
         for j in range(28 * 28):
             pixels.append(float(ord(f.read(1))) / 255.0)
         epsilon = np.random.normal(size=(400)).astype('float32')
-        yield {"pixel": pixels, 'label': label, 'epsilon':epsilon.tolist()}
+        #yield {"pixel": pixels, 'label': label, 'epsilon':epsilon.tolist()}
+        yield {"pixel": pixels, 'epsilon':epsilon.tolist()}
 
     f.close()
     l.close()
