@@ -35,81 +35,84 @@ settings(
 
 #######################Network Configuration #############
 
-# 样本集X
 n_X = 784 # 28 * 28
 n_z = 20 # latent variable count
 
-X = data_layer(name='pixel', size=data_size)
+X = data_layer(name='pixel', size=n_X)
 
 # Encoder
 
-## \mu(X) 采用二层网络
 ENCODER_HIDDEN_COUNT = 400
 with mixed_layer(bias_attr=True) as L1:
     L1 += full_matrix_projection(input=X, size=ENCODER_HIDDEN_COUNT)
 
 with mixed_layer(bias_attr=True) as mu:
-    mu += full_matrix_projection(input=L1, size=ENCODER_HIDDEN_COUNT)
+    mu += full_matrix_projection(input=L1, size=n_z)
 
 
-## \Sigma(X) 采用二层网络
 with mixed_layer(bias_attr=True) as L2:
     L2 += full_matrix_projection(input=X, size=ENCODER_HIDDEN_COUNT)
 
 with mixed_layer(bias_attr=True) as log_sigma:
-    log_sigma += full_matrix_projection(input=L2, size=ENCODER_HIDDEN_COUNT)
+    log_sigma += full_matrix_projection(input=L2, size=n_z)
 
 with mixed_layer(act=ExpActivation()) as sigma:
-    sigma += log_sigma
+    sigma += identity_projection(input=log_sigma)
 
 
 ## KLD = D[N(mu(X), sigma(X))||N(0, I)] = 1/2 * sum(sigma_i + mu_i^2 - log(sigma_i) - 1)
-with mixed_layer() as kld:
-    kld += identity_projection(input=sigma)
-    kld += dotmul_operator(a=mu, b=mu)
-    kld += slope_intercept_layer(input=log_sigma, slope=-1.0, intercept=-1.0)
 
-kld = slope_intercept_layer(input=kld, slope=0.5, intercept=0.0)
+kld0 = slope_intercept_layer(input=log_sigma, slope=-1.0, intercept=-1.0)
 
-#KLD = 0.5 * tf.reduce_sum(sigma + tf.pow(mu, 2) - log_sigma - 1, reduction_indices = 1) # reduction_indices = 1代表按照每个样本计算一条KLD
+with mixed_layer() as kld1:
+    kld1 += identity_projection(input=sigma)
+    kld1 += dotmul_operator(a=mu, b=mu)
+    kld1 += identity_projection(kld0)
 
-# epsilon = N(0, I) 采样模块
+    kld1 += dotmul_operator(a=mu, b=mu)
+    kld1 += identity_projection(kld0)
+
+kld2 = sum_cost(input=kld1)
+
+kld = slope_intercept_layer(input=kld2, slope=0.5, intercept=0.0)
+
 #epsilon = tf.random_normal(tf.shape(sigma), name = 'epsilon')
 
-epsilon = data_layer(name='epsilon', size=data_size)
+epsilon = data_layer(name='epsilon', size=n_z)
 
 
 # z = mu + sigma^ 0.5 * epsilon
 #z = mu + tf.exp(0.5 * log_sigma) * epsilon
 
+log_sigma1 = slope_intercept_layer(input=log_sigma, slope=0.5, intercept=0.0)
+
 with mixed_layer(act=ExpActivation()) as L3:
-    L3 += slope_intercept_layer(input=log_sigma, slope=0.5, intercept=0.0)
+    L3 += identity_projection(input=log_sigma1)
 
 with mixed_layer(act=ExpActivation()) as z:
     z += identity_projection(input=mu)
-    z += dotmul_operator(a=L3, b=epsilon)
+    #z += dotmul_operator(a=L3, b=epsilon)
 
-
-
-
-# Decoder ||f(z) - X|| ^ 2 重建的X与X的欧式距离，更加成熟的做法是使用crossentropy
 def buildDecoderNetwork(z):
-    # 构建一个二层神经网络，因为二层神经网络可以逼近任何函数
     DECODER_HIDDEN_COUNT = 400
     with mixed_layer(bias_attr=True) as layer1:
-        layer1 += full_matrix_projection(input=X, size=ENCODER_HIDDEN_COUNT)
+        layer1 += full_matrix_projection(input=z, size=ENCODER_HIDDEN_COUNT)
 
     with mixed_layer(bias_attr=True) as layer2:
-        layer2 += full_matrix_projection(input=layer1, size=ENCODER_HIDDEN_COUNT)
+        layer2 += full_matrix_projection(input=layer1, size=n_X)
 
     return layer2
     #layer1 = Layer(z, DECODER_HIDDEN_COUNT)
     #layer2 = Layer(layer1.output, n_X)
     #return layer2.raw_output
 
+    #layer2 = Layer(layer1.output, n_X)
+    #return layer2.raw_output
+
 reconstructed_X = buildDecoderNetwork(z)
 
-reconstruction_loss = cross_entropy(input=reconstructed_X, label=X)
+#reconstruction_loss = cross_entropy(input=reconstructed_X, label=X)
+reconstruction_loss = cross_entropy_with_selfnorm(input=reconstructed_X, label=X)
 
 #cost = sum_cost(input=cross_entropy)
 #reconstruction_loss = tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(reconstructed_X, X), reduction_indices = 1)
@@ -132,6 +135,9 @@ if not is_predict:
     #lbl = data_layer(name="label", size=label_size)
     #inputs(img, lbl)
     #outputs(classification_cost(input=predict, label=lbl))
-    output(cost)
+    outputs(loss)
 #else:
     #outputs(predict)
+
+
+
