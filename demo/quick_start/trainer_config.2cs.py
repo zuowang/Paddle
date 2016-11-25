@@ -19,8 +19,8 @@ import math
 dict_file = "./data/dict.txt"
 word_dict = dict()
 word_count = len(open(dict_file, 'r').readlines())
-word_count_sqrt = math.ceil(math.sqrt(word_count))
-print word_count_sqrt
+word_count_sqrt = int(math.ceil(math.sqrt(word_count)))
+print(word_count_sqrt)
 with open(dict_file, 'r') as f:
     row = 0
     col = 0
@@ -64,9 +64,10 @@ fc1 = fc_layer(input=emb1, size=512,
 lstm1 = lstmemory(input=fc1, act=TanhActivation(),
                    bias_attr=bias_attr,
                   layer_attr=ExtraAttr(drop_rate=0.25))
+lstm_last1 = pooling_layer(input=lstm1, pooling_type=MaxPooling())
 
 col_vector = data_layer(name="col_vector", size=word_count_sqrt)
-emb2 = embedding_layer(input=row_vector, size=128)
+emb2 = embedding_layer(input=col_vector, size=128)
 
 input_tmp = [emb2, lstm1]
 fc2 = fc_layer(input=input_tmp, size=512,
@@ -76,10 +77,10 @@ fc2 = fc_layer(input=input_tmp, size=512,
 lstm2 = lstmemory(input=fc2, act=TanhActivation(),
                   bias_attr=bias_attr,
                   layer_attr=ExtraAttr(drop_rate=0.25))
+lstm_last2 = pooling_layer(input=lstm2, pooling_type=MaxPooling())
 
-input_tmp = [lstm1, lstm2]
-lstm_last = pooling_layer(input=input_tmp, pooling_type=MaxPooling())
-output = fc_layer(input=lstm_last, size=2,
+input_tmp = [lstm_last1, lstm_last2]
+output = fc_layer(input=input_tmp, size=2,
                   bias_attr=bias_attr,
                   act=SoftmaxActivation())
 if is_predict:

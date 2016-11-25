@@ -14,14 +14,15 @@
 # limitations under the License.
 set -e
 
-cfg=trainer_config.lr.py
+#cfg=trainer_config.lr.py
 #cfg=trainer_config.emb.py
 #cfg=trainer_config.cnn.py
-#cfg=trainer_config.lstm.py
+cfg=trainer_config.lstm.py
+#cfg=trainer_config.2cs.py
 paddle train \
   --config=$cfg \
   --save_dir=./output \
-  --trainer_count=4 \
+  --trainer_count=32 \
   --log_period=20 \
   --num_passes=15 \
   --use_gpu=false \

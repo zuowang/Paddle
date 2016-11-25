@@ -14,7 +14,7 @@
 
 from paddle.trainer.PyDataProvider2 import *
 
-UNK_IDX = 0
+UNK_IDX = (0,0)
 
 def initializer(settings, dictionary, word_count_sqrt,**kwargs):
     settings.word_dict = dictionary
